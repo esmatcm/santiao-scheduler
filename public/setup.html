@@ -276,9 +276,12 @@
           可能的原因：<br>
           1. 三条 App 需要登录 — 请在手机上完成登录后重试<br>
           2. App 仍在加载中 — 等待几秒后重试<br>
-          3. 手机屏幕被锁定 — 请解锁手机
+          3. 手机屏幕被锁定 — 请解锁手机<br><br>
+          <strong>提示：</strong>如果三条还没有登录，可以先「跳过」此步骤，<br>
+          在手机上登录后再回来使用系统。
         </div>
         <button class="btn btn-primary" id="step4-btn" onclick="runStep4()" disabled>启动并检测</button>
+        <button class="btn" id="step4-skip" onclick="skipStep4()" style="display:none;background:var(--warning);margin-left:8px">跳过此步</button>
       </div>
     </div>
 
@@ -396,20 +399,35 @@ async function runStep3() {
 
 // Step 4: Launch Santiao & verify chat interface
 async function runStep4() {
-  setStepState(4, 'active', '正在启动三条 App 并检测聊天界面（约 15 秒）...');
+  setStepState(4, 'active', '正在启动三条 App 并检测聊天界面（约 30 秒）...');
   setBtn('step4-btn', '检测中...', true, true);
+  $('step4-skip').style.display = 'none';
   const r = await api('POST', 'launch-verify');
   if (r.ok) {
     setStepState(4, 'done', r.message || '聊天界面已就绪');
     setBtn('step4-btn', '已完成', true, false);
-    // Auto advance to IME
-    setBtn('step5-btn', '安装输入法', false, false);
-    setStepState(5, 'active', '正在安装 ADB 输入法...');
-    setTimeout(runStep5, 500);
+    $('step4-skip').style.display = 'none';
+    advanceToStep5();
   } else {
     setStepState(4, 'error', r.error || '聊天界面未检测到', true);
     setBtn('step4-btn', '重新检测', false, false);
+    // Show skip button on failure
+    $('step4-skip').style.display = 'inline-flex';
   }
+}
+
+// Skip step 4 if user hasn't logged into Santiao yet
+function skipStep4() {
+  setStepState(4, 'done', '已跳过（请确保手机上已登录三条）');
+  setBtn('step4-btn', '已跳过', true, false);
+  $('step4-skip').style.display = 'none';
+  advanceToStep5();
+}
+
+function advanceToStep5() {
+  setBtn('step5-btn', '安装输入法', false, false);
+  setStepState(5, 'active', '正在安装 ADB 输入法...');
+  setTimeout(runStep5, 500);
 }
 
 // Step 5: Install IME
@@ -443,7 +461,9 @@ async function runStep6() {
   }
 }
 
-function enterDashboard() {
+async function enterDashboard() {
+  // Force-mark setup as complete so redirect middleware allows access
+  try { await api('POST', 'force-complete'); } catch {}
   window.location.href = '/';
 }
 

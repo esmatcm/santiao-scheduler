@@ -73,7 +73,7 @@ if !ERRORLEVEL! neq 0 (
 :: --- Install dependencies ---
 if not exist "%ROOT%\node_modules" (
     echo.
-    echo [...] Installing dependencies (first time only, please wait)...
+    echo [...] Installing dependencies ^(first time only, please wait^)...
     call "!NPM_BIN!" install --production 2>&1
     if !ERRORLEVEL! neq 0 (
         echo [ERROR] npm install failed!
@@ -89,29 +89,57 @@ if not exist "%ROOT%\node_modules" (
 netstat -an 2>nul | findstr ":3456 " | findstr "LISTENING" >nul 2>nul
 if !ERRORLEVEL! equ 0 (
     echo.
-    echo [WARN] Port 3456 is already in use!
-    echo   Another instance may be running.
-    echo   Please close it first, or open http://localhost:3456 directly.
+    echo [!] Port 3456 is already in use — opening existing instance...
+    start "" "http://localhost:3456"
     echo.
     pause
-    exit /b 1
+    exit /b 0
 )
 
 echo.
 echo [...] Starting server...
 echo.
+
+:: Start server in background
+start "" /b "!NODE_BIN!" "%ROOT%\server.js"
+
+:: Wait for server to be ready (poll up to 30 seconds)
+echo [...] Waiting for server to start...
+set "READY=0"
+for /L %%i in (1,1,30) do (
+    if !READY! equ 0 (
+        >nul 2>nul (
+            powershell -Command "(New-Object Net.WebClient).DownloadString('http://localhost:3456/api/health')" && set "READY=1"
+        )
+        if !READY! equ 0 (
+            >nul timeout /t 1 /nobreak
+        )
+    )
+)
+
+if !READY! equ 0 (
+    echo [WARN] Server may not have started properly.
+    echo   Attempting to open browser anyway...
+)
+
+echo.
 echo   ==========================================
-echo     Open in browser: http://localhost:3456
+echo     [OK] Server started!
+echo.
+echo     Browser will open automatically...
+echo     If not, visit: http://localhost:3456
+echo.
 echo     Close this window to stop the server
 echo   ==========================================
 echo.
 
-:: Open browser after 2 seconds, then start server (server blocks this window)
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3456"
-"!NODE_BIN!" "%ROOT%\server.js"
+:: Open browser
+start "" "http://localhost:3456"
 
-:: If server exits (error or ctrl+c), show message
+:: Keep window open — wait for user to close it
+echo Press Ctrl+C or close this window to stop the server.
 echo.
-echo [INFO] Server has stopped.
-echo.
-pause
+
+:wait_loop
+>nul timeout /t 3600 /nobreak
+goto :wait_loop

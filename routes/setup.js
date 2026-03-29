@@ -36,6 +36,17 @@ router.post('/verify', async (req, res) => {
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+router.post('/force-complete', (req, res) => {
+  // Allow user to skip into dashboard even if verify didn't fully pass
+  // (e.g. user hasn't logged into Santiao yet but wants to configure schedules)
+  const state = setup.getState();
+  if (!state.completed) {
+    // Use internal saveState — need to expose it
+    setup.forceComplete();
+  }
+  res.json({ ok: true });
+});
+
 router.post('/reset', (req, res) => {
   res.json(setup.reset());
 });

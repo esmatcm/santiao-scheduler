@@ -33,7 +33,6 @@ if !ERRORLEVEL! equ 0 (
 )
 
 echo [ERROR] Node.js not found!
-echo   Please install Node.js from https://nodejs.org/
 echo.
 pause
 exit /b 1
@@ -56,19 +55,10 @@ if !ERRORLEVEL! equ 0 (
 echo [WARN] ADB not found — setup wizard will guide you
 :adb_ok
 
-:: --- Verify Node ---
-"!NODE_BIN!" -e "console.log('[OK] Node.js ' + process.version + ' verified')" 2>nul
-if !ERRORLEVEL! neq 0 (
-    echo [ERROR] Node.js verification failed!
-    echo.
-    pause
-    exit /b 1
-)
-
 :: --- Install dependencies ---
 if not exist "%ROOT%\node_modules" (
     echo.
-    echo [...] Installing dependencies (first time only)...
+    echo [...] Installing dependencies ^(first time only^)...
     call "!NPM_BIN!" install --production 2>&1
     if !ERRORLEVEL! neq 0 (
         echo [ERROR] npm install failed!
@@ -79,17 +69,40 @@ if not exist "%ROOT%\node_modules" (
     echo [OK] Dependencies installed
 )
 
+:: --- Check port ---
+netstat -an 2>nul | findstr ":3456 " | findstr "LISTENING" >nul 2>nul
+if !ERRORLEVEL! equ 0 (
+    echo.
+    echo [!] Port 3456 already in use — opening existing instance...
+    start "" "http://localhost:3456"
+    pause
+    exit /b 0
+)
+
 echo.
 echo [...] Starting server...
+
+:: Start server in background
+start "" /b "!NODE_BIN!" "%ROOT%\server.js"
+
+:: Wait for server ready (poll up to 30s)
+set "READY=0"
+for /L %%i in (1,1,30) do (
+    if !READY! equ 0 (
+        >nul 2>nul (
+            powershell -Command "(New-Object Net.WebClient).DownloadString('http://localhost:3456/api/health')" && set "READY=1"
+        )
+        if !READY! equ 0 >nul timeout /t 1 /nobreak
+    )
+)
+
 echo.
-echo   Open in browser: http://localhost:3456
+echo   [OK] http://localhost:3456
 echo   Close this window to stop
 echo.
 
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3456"
-"!NODE_BIN!" "%ROOT%\server.js"
+start "" "http://localhost:3456"
 
-echo.
-echo [INFO] Server has stopped.
-echo.
-pause
+:wait_loop
+>nul timeout /t 3600 /nobreak
+goto :wait_loop
