@@ -4,17 +4,18 @@
 # ====================================
 set -e
 
-# Navigate to this file's directory (project root)
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
 
-echo "==============================="
-echo "  三条定时发送工具"
-echo "==============================="
+echo ""
+echo "  =========================================="
+echo "    三条定时发送工具 — Starting..."
+echo "  =========================================="
 echo ""
 
 # --- Resolve Node.js ---
 NODE_BIN=""
+NPM_BIN=""
 if [ -x "$ROOT/runtime/node/bin/node" ]; then
   NODE_BIN="$ROOT/runtime/node/bin/node"
   NPM_BIN="$ROOT/runtime/node/bin/npm"
@@ -26,7 +27,6 @@ elif command -v node &>/dev/null; then
   echo "[OK] Node.js (system) $($NODE_BIN -v)"
 else
   echo "[ERROR] Node.js not found!"
-  echo "  This should not happen — the bundled runtime is missing."
   read -p "Press Enter to exit..."
   exit 1
 fi
@@ -49,37 +49,6 @@ if [ ! -d "$ROOT/node_modules" ]; then
   echo "[OK] Done"
 fi
 
-# --- Check port ---
-if lsof -i :3456 -P -n 2>/dev/null | grep -q LISTEN; then
-  echo ""
-  echo "[!] Port 3456 is already in use"
-  echo "    Opening: http://localhost:3456"
-  open "http://localhost:3456" 2>/dev/null || true
-  read -p "Press Enter to exit..."
-  exit 0
-fi
-
+# --- Launch via Node.js (handles server start + wait + open browser) ---
 echo ""
-echo "[...] Starting server..."
-
-# Start server
-"$NODE_BIN" "$ROOT/server.js" &
-SERVER_PID=$!
-
-# Wait for server ready
-for i in {1..15}; do
-  if curl -s -o /dev/null http://localhost:3456 2>/dev/null; then break; fi
-  sleep 1
-done
-
-echo "[OK] Server started"
-echo ""
-echo "  ➜  http://localhost:3456"
-echo ""
-echo "  Close this window or press Ctrl+C to stop"
-echo ""
-
-# Open browser
-open "http://localhost:3456" 2>/dev/null || true
-
-wait $SERVER_PID
+"$NODE_BIN" "$ROOT/scripts/launch.js"
