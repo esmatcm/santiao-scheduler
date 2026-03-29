@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三条聊天 - 定时发送工具</title>
+  <style>
+    /* ===== CSS Variables (light / dark) ===== */
+    :root {
+      --bg:          #f0f2f5;
+      --surface:     #ffffff;
+      --surface2:    #fafafa;
+      --text:        #333;
+      --text-muted:  #888;
+      --text-label:  #555;
+      --border:      #ddd;
+      --border2:     #eee;
+      --primary:     #4CAF50;
+      --primary-d:   #388e3c;
+      --primary-dk:  #2e7d32;
+      --primary-bg:  #e8f5e9;
+      --shadow:      rgba(0,0,0,0.08);
+      --shadow2:     rgba(0,0,0,0.15);
+      --running-bg:  #fff3e0;
+      --running-c:   #e65100;
+      --error-bg:    #ffebee;
+      --error-c:     #c62828;
+      --info-bg:     #e3f2fd;
+      --info-c:      #1565c0;
+    }
+    [data-theme="dark"] {
+      --bg:          #121212;
+      --surface:     #1e1e1e;
+      --surface2:    #2a2a2a;
+      --text:        #e0e0e0;
+      --text-muted:  #888;
+      --text-label:  #bbb;
+      --border:      #3a3a3a;
+      --border2:     #2d2d2d;
+      --primary:     #66bb6a;
+      --primary-d:   #4caf50;
+      --primary-dk:  #388e3c;
+      --primary-bg:  #1b2e1b;
+      --shadow:      rgba(0,0,0,0.3);
+      --shadow2:     rgba(0,0,0,0.5);
+      --running-bg:  #2d2000;
+      --running-c:   #ffb74d;
+      --error-bg:    #2d0a0a;
+      --error-c:     #ef9a9a;
+      --info-bg:     #0a1a2d;
+      --info-c:      #90caf9;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; transition: background 0.2s, color 0.2s;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dk));
+      color: white; padding: 16px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 2px 10px var(--shadow2);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header h1 { font-size: 18px; display: flex; align-items: center; gap: 10px; }
+    .device-dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+      background: #999; transition: background 0.3s; flex-shrink: 0;
+    }
+    .device-dot.online  { background: #76ff03; box-shadow: 0 0 6px #76ff03; }
+    .device-dot.offline { background: #f44336; box-shadow: 0 0 6px #f44336; }
+    .header-info { font-size: 11px; opacity: 0.85; margin-left: 4px; }
+    .header .actions { display: flex; gap: 8px; align-items: center; }
+    .header-btn {
+      background: rgba(255,255,255,0.15); color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .header-btn:hover { background: rgba(255,255,255,0.25); }
+    select.header-btn option { background: #333; color: white; }
+
+    .container { max-width: 960px; margin: 20px auto; padding: 0 16px; }
+
+    /* Card */
+    .card {
+      background: var(--surface); border-radius: 12px; padding: 22px;
+      margin-bottom: 16px; box-shadow: 0 1px 6px var(--shadow);
+      transition: box-shadow 0.2s, background 0.2s;
+    }
+    .card.editing { box-shadow: 0 0 0 2px var(--primary), 0 4px 16px rgba(76,175,80,0.15); }
+    .card h2 {
+      font-size: 15px; margin-bottom: 14px;
+      color: var(--primary-dk); display: flex; align-items: center;
+      justify-content: space-between; gap: 6px;
+    }
+    [data-theme="dark"] .card h2 { color: var(--primary); }
+    .card-toggle { cursor: pointer; font-size: 12px; color: var(--text-muted); user-select: none; }
+
+    /* Forms */
+    .form-row { display: flex; gap: 14px; margin-bottom: 12px; align-items: flex-start; }
+    .form-row.full { flex-direction: column; }
+    .form-group { flex: 1; display: flex; flex-direction: column; }
+    .form-group label { font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text-label); }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 13px; outline: none; transition: border-color 0.2s;
+      background: var(--surface); color: var(--text);
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--primary);
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; font-family: inherit; }
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .hint code { background: var(--surface2); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+
+    /* Buttons */
+    .btn {
+      padding: 9px 18px; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-d); }
+    .btn-danger  { background: #f44336; color: white; }
+    .btn-danger:hover:not(:disabled)  { background: #d32f2f; }
+    .btn-warning { background: #ff9800; color: white; }
+    .btn-warning:hover:not(:disabled) { background: #f57c00; }
+    .btn-sm  { padding: 5px 12px; font-size: 11px; }
+    .btn-xs  { padding: 3px 8px;  font-size: 10px; border-radius: 4px; }
+    .btn-outline {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: white;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast-container { position: fixed; top: 70px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      padding: 10px 18px; border-radius: 8px; color: white; font-size: 13px;
+      box-shadow: 0 4px 12px var(--shadow2); animation: toastIn 0.3s ease-out;
+      max-width: 320px; transition: opacity 0.3s;
+    }
+    .toast.success { background: #4CAF50; }
+    .toast.error   { background: #f44336; }
+    .toast.info    { background: #2196F3; }
+    @keyframes toastIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Group tags */
+    .group-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .group-tag {
+      background: var(--primary-bg); color: var(--primary-dk); padding: 3px 10px;
+      border-radius: 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;
+    }
+    [data-theme="dark"] .group-tag { color: var(--primary); }
+    .group-tag .remove { cursor: pointer; font-size: 14px; opacity: 0.6; }
+    .group-tag .remove:hover { opacity: 1; }
+
+    /* Multi-group selector */
+    .multi-group-box {
+      border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+      background: var(--surface); min-height: 42px; cursor: pointer;
+      display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    }
+    .multi-group-box:focus-within { border-color: var(--primary); }
+    .multi-group-dropdown {
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); margin-top: 4px;
+      max-height: 180px; overflow-y: auto; display: none;
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+    .multi-group-dropdown.open { display: block; }
+    .multi-group-option {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; cursor: pointer; font-size: 13px;
+      border-bottom: 1px solid var(--border2);
+    }
+    .multi-group-option:last-child { border-bottom: none; }
+    .multi-group-option:hover { background: var(--surface2); }
+    .multi-group-option input[type=checkbox] { cursor: pointer; }
+    .selected-group-chip {
+      background: var(--primary-bg); color: var(--primary-dk);
+      padding: 2px 8px; border-radius: 10px; font-size: 12px;
+      display: flex; align-items: center; gap: 3px;
+    }
+    [data-theme="dark"] .selected-group-chip { color: var(--primary); }
+    .selected-group-chip .x { cursor: pointer; opacity: 0.6; font-size: 13px; line-height: 1; }
+    .selected-group-chip .x:hover { opacity: 1; }
+    .placeholder-text { color: var(--text-muted); font-size: 13px; }
+
+    /* Schedule rows */
+    .schedule-list { display: flex; flex-direction: column; gap: 8px; }
+    .schedule-row {
+      background: var(--surface2); border-radius: 8px; border: 1px solid var(--border2);
+      overflow: hidden;
+    }
+    .schedule-row-main {
+      display: flex; gap: 8px; align-items: center; padding: 8px 10px;
+    }
+    .schedule-row-main input { flex: 1; }
+    .sched-label-input { width: 90px !important; flex: none !important; }
+    .cron-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .cron-presets .btn { padding: 3px 8px; font-size: 10px; }
+
+    /* Schedule visual picker */
+    .sched-visual-wrap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1; }
+    .sched-visual-wrap select, .sched-visual-wrap input[type=time], .sched-visual-wrap input[type=date] {
+      padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; background: var(--surface); color: var(--text); outline: none;
+    }
+    .sched-visual-wrap select:focus, .sched-visual-wrap input[type=time]:focus,
+    .sched-visual-wrap input[type=date]:focus { border-color: var(--primary); }
+    .sched-interval-wrap { display: flex; align-items: center; gap: 4px; }
+    .sched-interval {
+      width: 58px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; background: var(--surface); color: var(--text); outline: none;
+    }
+    .sched-interval:focus { border-color: var(--primary); }
+    .sched-interval-unit { font-size: 11px; color: var(--text-muted); }
+    .sched-adv-row {
+      border-top: 1px solid var(--border2); padding: 8px 10px;
+      background: var(--bg); display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .sched-adv-row.open { display: flex; }
+    .sched-adv-row label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    .sched-adv-row input[type=text] {
+      flex: 1; min-width: 160px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; background: var(--surface); color: var(--text); outline: none; font-family: monospace;
+    }
+    .sched-adv-row input[type=text]:focus { border-color: var(--primary); }
+    .sched-adv-toggle-row { padding: 0 10px 6px; }
+    .sched-adv-toggle { font-size: 11px; color: var(--text-muted); cursor: pointer; text-decoration: none; }
+    .sched-adv-toggle:hover { color: var(--primary); text-decoration: underline; }
+    .day-checks { display: flex; gap: 4px; flex-wrap: wrap; }
+    .day-checks label {
+      display: flex; align-items: center; gap: 2px; font-size: 11px; cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 6px; transition: all 0.15s; color: var(--text);
+    }
+    .day-checks input[type=checkbox]:checked + span { color: var(--primary); font-weight: 600; }
+    .day-checks label:has(input:checked) { border-color: var(--primary); background: var(--primary-bg); }
+
+    /* Image preview */
+    .image-preview { margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+    .image-preview img { max-height: 60px; max-width: 80px; border-radius: 6px; border: 1px solid var(--border); object-fit: cover; }
+    .image-preview .file-name { font-size: 11px; color: var(--text-muted); }
+
+    /* Templates */
+    .template-list { display: flex; flex-direction: column; gap: 6px; }
+    .template-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; background: var(--surface2); border-radius: 8px;
+      border: 1px solid var(--border2); gap: 10px;
+    }
+    .template-item .t-name { font-weight: 600; font-size: 12px; white-space: nowrap; min-width: 80px; }
+    .template-item .t-msg { font-size: 11px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .template-item .t-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .template-add-row { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
+    .template-add-row .form-group { margin: 0; }
+
+    /* Task list controls */
+    .task-controls {
+      display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;
+    }
+    .task-controls input[type=text] {
+      flex: 1; min-width: 140px; padding: 7px 11px;
+      border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+      background: var(--surface); color: var(--text); outline: none;
+    }
+    .task-controls input:focus { border-color: var(--primary); }
+    .task-controls select {
+      padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 12px; background: var(--surface); color: var(--text); outline: none;
+    }
+
+    /* Task items */
+    .task-item {
+      background: var(--surface); border-radius: 10px; padding: 16px;
+      box-shadow: 0 1px 4px var(--shadow);
+      border-left: 4px solid var(--primary);
+      margin-bottom: 10px; transition: all 0.3s;
+    }
+    .task-item.disabled { border-left-color: #999; opacity: 0.65; }
+    .task-item.error    { border-left-color: #f44336; }
+    .task-item.running  { border-left-color: #ff9800; }
+    .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .task-name   { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .task-actions { display: flex; gap: 6px; align-items: center; }
+    .task-meta { font-size: 11px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
+    .task-content {
+      font-size: 12px; color: var(--text-label); background: var(--surface2);
+      padding: 6px 10px; border-radius: 6px; margin-top: 4px;
+      word-break: break-all; white-space: pre-wrap;
+    }
+    .task-schedules { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .task-sched-tag { background: var(--info-bg); color: var(--info-c); padding: 2px 8px; border-radius: 8px; font-size: 11px; }
+    .task-image-tag { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+    .task-step {
+      font-size: 11px; color: var(--running-c); background: var(--running-bg);
+      padding: 4px 10px; border-radius: 6px; margin-top: 6px;
+      display: none; animation: pulse 1.5s ease-in-out infinite;
+    }
+    .task-step.visible { display: block; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+    /* Log viewer */
+    .log-toggle { font-size: 11px; color: var(--info-c); cursor: pointer; margin-top: 6px; display: inline-block; }
+    .log-toggle:hover { text-decoration: underline; }
+    .log-list { margin-top: 6px; display: none; }
+    .log-list.open { display: block; }
+    .log-entry {
+      font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-bottom: 3px;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;
+    }
+    .log-entry.success { background: var(--primary-bg); color: var(--primary-dk); }
+    .log-entry.error   { background: var(--error-bg);   color: var(--error-c); }
+    [data-theme="dark"] .log-entry.success { color: var(--primary); }
+    .log-pagination { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: 11px; color: var(--text-muted); }
+
+    /* Toggle switch */
+    .toggle {
+      width: 40px; height: 22px; background: #ccc; border-radius: 11px;
+      position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--primary); }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.2s;
+    }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* Status badge */
+    .status-badge { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+    .status-badge.active   { background: var(--primary-bg); color: var(--primary-dk); }
+    .status-badge.running  { background: var(--running-bg); color: var(--running-c); }
+    .status-badge.error    { background: var(--error-bg);   color: var(--error-c); }
+    .status-badge.disabled { background: var(--surface2);   color: var(--text-muted); }
+    [data-theme="dark"] .status-badge.active { color: var(--primary); }
+
+    .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px; }
+    .phone-preview { text-align: center; }
+    .phone-preview img { max-height: 380px; border-radius: 10px; border: 2px solid var(--border); }
+
+    .queue-bar {
+      background: var(--running-bg); color: var(--running-c);
+      font-size: 12px; padding: 6px 16px; text-align: center; display: none;
+    }
+    .queue-bar.visible { display: block; }
+
+    .collapsible-body { }
+    .collapsible-body.hidden { display: none; }
+
+    @media (max-width: 640px) {
+      .form-row { flex-direction: column; }
+      .task-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .header { padding: 12px 16px; }
+      .header h1 { font-size: 16px; }
+      .task-controls { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>
+      <span class="device-dot" id="deviceDot" title="设备状态"></span>
+      SANT 三条 - 定时群发
+      <span class="header-info" id="headerInfo"></span>
+    </h1>
+    <div class="actions">
+      <select id="timeFormatSelect" class="header-btn" style="cursor:pointer" onchange="onTimeFormatChange(this.value)">
+        <option value="24h">24小时制</option>
+        <option value="12h">12小时制</option>
+      </select>
+      <button class="header-btn" onclick="toggleDarkMode()" id="darkBtn">🌙 暗色</button>
+      <button class="header-btn" onclick="refreshScreenshot()">截图</button>
+    </div>
+  </div>
+
+  <div class="queue-bar" id="queueBar"></div>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="container">
+
+    <!-- Group Management -->
+    <div class="card">
+      <h2>
+        群聊管理
+        <span class="card-toggle" onclick="toggleCard('groupBody', this)">▲ 收起</span>
+      </h2>
+      <div id="groupBody">
+        <div class="form-row">
+          <div class="form-group" style="flex:2">
+            <label>添加群名</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="newGroupInput" placeholder="输入群聊名称...">
+              <button class="btn btn-primary btn-sm" onclick="addGroup()">添加</button>
+              <button class="btn btn-sm" id="scanGroupBtn" onclick="scanGroupsFromPhone()" style="background:#1976d2;color:#fff;white-space:nowrap">📱 扫描手机</button>
+            </div>
+          </div>
+        </div>
+        <div id="scanProgress" style="display:none;margin:8px 0;padding:10px 14px;border-radius:8px;background:var(--info-bg);color:var(--info-c);font-size:13px">
+          <span id="scanProgressText">准备扫描...</span>
+        </div>
+        <div id="scanResults" style="display:none;margin:8px 0"></div>
+        <div class="group-tags" id="groupTags"></div>
+      </div>
+    </div>
+
+    <!-- Message Templates -->
+    <div class="card">
+      <h2>
+        消息模板
+        <span class="card-toggle" onclick="toggleCard('templatesBody', this)">▼ 展开</span>
+      </h2>
+      <div id="templatesBody" class="hidden">
+        <div class="template-list" id="templateList"></div>
+        <div class="template-add-row">
+          <div class="form-group" style="flex:0 0 110px">
+            <label>模板名称</label>
+            <input type="text" id="newTplName" placeholder="如: 早安问候">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>模板内容</label>
+            <input type="text" id="newTplMsg" placeholder="消息内容...">
+          </div>
+          <div style="padding-top:22px">
+            <button class="btn btn-primary btn-sm" onclick="addTemplate()">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New/Edit Task Form -->
+    <div class="card" id="formCard">
+      <h2 id="formTitle">新建定时任务</h2>
+      <form id="taskForm" enctype="multipart/form-data">
+        <input type="hidden" id="editId" value="">
+
+        <!-- Multi-group selector -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>目标群聊 (可多选)</label>
+            <div class="multi-group-box" id="multiGroupBox" onclick="toggleGroupDropdown(event)">
+              <span class="placeholder-text" id="multiPlaceholder">-- 点击选择群聊 --</span>
+            </div>
+            <div class="multi-group-dropdown" id="multiGroupDropdown"></div>
+          </div>
+        </div>
+
+        <!-- Template selector -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>应用模板 (可选)</label>
+            <div style="display:flex;gap:8px">
+              <select id="tplSelect" style="flex:1">
+                <option value="">-- 选择模板填充消息 --</option>
+              </select>
+              <button type="button" class="btn btn-outline btn-sm" onclick="applyTemplate()">应用</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row full">
+          <div class="form-group">
+            <label>发送文字 (可留空只发图片)</label>
+            <textarea name="message" id="messageInput" placeholder="输入要发送的消息内容..."></textarea>
+            <div class="hint">支持变量: <code>{date}</code> 日期 <code>{time}</code> 时间 <code>{datetime}</code> 日期时间</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>上传图片 (可选，和文字可同时发送)</label>
+            <input type="file" name="image" accept="image/*" id="imageInput">
+            <div class="image-preview" id="imagePreview" style="display:none">
+              <img id="previewImg" src="">
+              <span class="file-name" id="previewName"></span>
+              <button type="button" class="btn btn-xs btn-outline" onclick="clearImage()">移除</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedules -->
+        <div class="form-group" style="margin-bottom:12px">
+          <label>定时计划 (可添加多个时段)</label>
+          <div class="schedule-list" id="scheduleList"></div>
+          <div style="margin-top:8px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addScheduleRow()">+ 添加时段</button>
+          </div>
+          <div class="cron-presets" style="margin-top:8px">
+            <span style="font-size:11px;color:var(--text-muted);margin-right:4px">快捷:</span>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('*/5 * * * *')">每5分钟</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('*/15 * * * *')">每15分钟</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('*/30 * * * *')">每30分钟</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 * * * *')">每小时</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 */2 * * *')">每2小时</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 9 * * *')">每天9:00</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 12 * * *')">每天12:00</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 18 * * *')">每天18:00</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 9,12,18 * * *')">9/12/18点</button>
+            <button type="button" class="btn btn-outline btn-xs" onclick="fillLastCron('0 9 * * 1-5')">工作日9:00</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" class="btn btn-primary" id="submitBtn">创建任务</button>
+          <button type="button" class="btn btn-outline" onclick="resetForm()">取消</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Task List -->
+    <div class="card">
+      <h2>定时任务列表 (<span id="taskCount">0</span>)</h2>
+      <div class="task-controls">
+        <input type="text" id="taskSearch" placeholder="搜索群聊名/消息..." oninput="renderTasks()">
+        <select id="taskSort" onchange="renderTasks()">
+          <option value="createdDesc">最新创建</option>
+          <option value="createdAsc">最早创建</option>
+          <option value="runDesc">最近执行</option>
+          <option value="nameAsc">名称 A-Z</option>
+          <option value="status">状态</option>
+        </select>
+      </div>
+      <div id="taskList">
+        <div class="empty-state">暂无定时任务</div>
+      </div>
+    </div>
+
+    <!-- Phone Screenshot -->
+    <div class="card phone-preview" id="screenshotCard" style="display:none">
+      <h2>手机画面</h2>
+      <img id="screenshotImg" src="">
+    </div>
+  </div>
+
+  <script>
+    // ===== Dark Mode =====
+    (function() {
+      const saved = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('darkBtn');
+        if (btn) btn.textContent = saved === 'dark' ? '☀️ 亮色' : '🌙 暗色';
+        const sel = document.getElementById('timeFormatSelect');
+        if (sel) sel.value = localStorage.getItem('timeFormat') || '24h';
+      });
+    })();
+
+    function onTimeFormatChange(val) {
+      localStorage.setItem('timeFormat', val);
+      renderTasks();
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      const next = isDark ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.getElementById('darkBtn').textContent = next === 'dark' ? '☀️ 亮色' : '🌙 暗色';
+    }
+
+    // ===== Collapsible cards =====
+    function toggleCard(bodyId, btn) {
+      const body = document.getElementById(bodyId);
+      const hidden = body.classList.toggle('hidden');
+      btn.textContent = hidden ? '▼ 展开' : '▲ 收起';
+    }
+
+    // ===== Toast =====
+    function toast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.textContent = msg;
+      c.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+    }
+
+    // ===== SSE =====
+    const liveSteps = {};
+    let sseRetryTimer = null;
+
+    function connectSSE() {
+      const es = new EventSource('/api/events');
+      es.addEventListener('connected', () => {
+        if (sseRetryTimer) { clearTimeout(sseRetryTimer); sseRetryTimer = null; }
+      });
+      es.addEventListener('step', (e) => {
+        const { taskId, step } = JSON.parse(e.data);
+        if (step) { liveSteps[taskId] = step; } else { delete liveSteps[taskId]; }
+        updateStepDisplays();
+      });
+      es.addEventListener('taskUpdate', (e) => {
+        const data = JSON.parse(e.data);
+        if (data.status === 'active') toast('任务完成', 'success');
+        if (data.status === 'error')  toast('任务出错: ' + (data.error || ''), 'error');
+        loadTasks();
+      });
+      es.onerror = () => { es.close(); sseRetryTimer = setTimeout(connectSSE, 3000); };
+    }
+
+    function updateStepDisplays() {
+      document.querySelectorAll('.task-step').forEach(el => {
+        const tid = el.dataset.taskId;
+        if (liveSteps[tid]) { el.textContent = liveSteps[tid]; el.classList.add('visible'); }
+        else { el.classList.remove('visible'); }
+      });
+    }
+
+    // ===== Device Status =====
+    async function checkDevice() {
+      try {
+        const d = await (await fetch('/api/status')).json();
+        const dot = document.getElementById('deviceDot');
+        dot.className = 'device-dot ' + (d.online ? 'online' : 'offline');
+        dot.title = d.online ? '设备在线' + (d.adbIME ? ' | AdbIME' : '') : '设备离线';
+        document.getElementById('headerInfo').textContent =
+          d.online ? (d.adbIME ? 'AdbIME ✓' : 'IME: ' + d.ime) : '设备离线';
+        const qb = document.getElementById('queueBar');
+        if (d.running || d.queueLength > 0) {
+          qb.textContent = (d.running ? '正在执行任务...' : '') + (d.queueLength > 0 ? ` 队列: ${d.queueLength}` : '');
+          qb.classList.add('visible');
+        } else { qb.classList.remove('visible'); }
+      } catch {
+        document.getElementById('deviceDot').className = 'device-dot offline';
+        document.getElementById('headerInfo').textContent = '连接失败';
+      }
+    }
+
+    // ===== Groups =====
+    let groups = [];
+    let selectedGroups = []; // for the task form
+
+    async function loadGroups() {
+      groups = await (await fetch('/api/groups')).json();
+      renderGroups();
+      renderMultiGroupDropdown();
+    }
+
+    function renderGroups() {
+      document.getElementById('groupTags').innerHTML = groups.map(g => `
+        <div class="group-tag">
+          ${esc(g)}
+          <span class="remove" onclick="removeGroup('${esc(g)}')">&times;</span>
+        </div>
+      `).join('');
+    }
+
+    async function addGroup() {
+      const inp = document.getElementById('newGroupInput');
+      const name = inp.value.trim();
+      if (!name) return;
+      await fetch('/api/groups', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+      inp.value = '';
+      await loadGroups();
+      toast('已添加群: ' + name, 'success');
+    }
+
+    async function removeGroup(name) {
+      await fetch('/api/groups/' + encodeURIComponent(name), { method: 'DELETE' });
+      loadGroups();
+    }
+
+    // Scan groups from phone
+    async function scanGroupsFromPhone() {
+      const btn = document.getElementById('scanGroupBtn');
+      const progressDiv = document.getElementById('scanProgress');
+      const progressText = document.getElementById('scanProgressText');
+      const resultsDiv = document.getElementById('scanResults');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ 扫描中...';
+      progressDiv.style.display = 'block';
+      resultsDiv.style.display = 'none';
+      progressText.textContent = '正在连接手机...';
+
+      // Listen for progress via SSE
+      let sse;
+      try {
+        sse = new EventSource('/api/groups/scan/progress');
+        sse.addEventListener('progress', (e) => {
+          const data = JSON.parse(e.data);
+          progressText.textContent = data.message;
+        });
+      } catch {}
+
+      try {
+        const resp = await fetch('/api/groups/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maxScrolls: 3 }),
+        });
+        const data = await resp.json();
+
+        if (data.ok) {
+          progressDiv.style.display = 'none';
+          if (data.found.length > 0) {
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = `
+              <div style="padding:10px 14px;border-radius:8px;background:var(--primary-bg);color:var(--primary-d);font-size:13px">
+                ✅ 扫描完成！发现 <b>${data.found.length}</b> 个群聊，新增 <b>${data.added}</b> 个
+                <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
+                  ${data.found.map(g => `<span style="display:inline-block;background:var(--surface2);padding:2px 8px;border-radius:4px;margin:2px">${esc(g)}</span>`).join('')}
+                </div>
+              </div>`;
+            // Auto-hide results after 8 seconds
+            setTimeout(() => { resultsDiv.style.display = 'none'; }, 8000);
+          } else {
+            toast('未发现群聊，请确认手机已登录三条并有群聊会话', 'error');
+          }
+          await loadGroups();
+        } else {
+          progressDiv.style.display = 'none';
+          toast('扫描失败: ' + data.error, 'error');
+        }
+      } catch (e) {
+        progressDiv.style.display = 'none';
+        toast('扫描出错: ' + e.message, 'error');
+      } finally {
+        if (sse) sse.close();
+        btn.disabled = false;
+        btn.innerHTML = '📱 扫描手机';
+      }
+    }
+
+    // Multi-group selector
+    function renderMultiGroupDropdown() {
+      const dd = document.getElementById('multiGroupDropdown');
+      dd.innerHTML = groups.map(g => `
+        <label class="multi-group-option">
+          <input type="checkbox" value="${esc(g)}" ${selectedGroups.includes(g) ? 'checked' : ''}
+            onchange="onGroupCheckChange('${esc(g)}', this.checked)">
+          ${esc(g)}
+        </label>
+      `).join('') || '<div style="padding:10px;font-size:12px;color:var(--text-muted)">暂无群聊，请先添加</div>';
+    }
+
+    function renderMultiGroupBox() {
+      const box = document.getElementById('multiGroupBox');
+      const ph  = document.getElementById('multiPlaceholder');
+      if (selectedGroups.length === 0) {
+        box.querySelectorAll('.selected-group-chip').forEach(e => e.remove());
+        ph.style.display = '';
+      } else {
+        ph.style.display = 'none';
+        // rebuild chips
+        box.querySelectorAll('.selected-group-chip').forEach(e => e.remove());
+        selectedGroups.forEach(g => {
+          const chip = document.createElement('span');
+          chip.className = 'selected-group-chip';
+          chip.innerHTML = esc(g) + `<span class="x" onclick="event.stopPropagation();removeSelectedGroup('${esc(g)}')">&times;</span>`;
+          box.insertBefore(chip, ph);
+        });
+      }
+    }
+
+    function onGroupCheckChange(name, checked) {
+      if (checked && !selectedGroups.includes(name)) selectedGroups.push(name);
+      else if (!checked) selectedGroups = selectedGroups.filter(g => g !== name);
+      renderMultiGroupBox();
+    }
+
+    function removeSelectedGroup(name) {
+      selectedGroups = selectedGroups.filter(g => g !== name);
+      renderMultiGroupBox();
+      renderMultiGroupDropdown();
+    }
+
+    function toggleGroupDropdown(e) {
+      const dd = document.getElementById('multiGroupDropdown');
+      dd.classList.toggle('open');
+    }
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      const box = document.getElementById('multiGroupBox');
+      const dd  = document.getElementById('multiGroupDropdown');
+      if (box && !box.contains(e.target) && dd && !dd.contains(e.target)) {
+        dd.classList.remove('open');
+      }
+    });
+
+    // ===== Templates =====
+    let templates = [];
+
+    async function loadTemplates() {
+      templates = await (await fetch('/api/templates')).json();
+      renderTemplateList();
+      renderTemplateSelect();
+    }
+
+    function renderTemplateList() {
+      const el = document.getElementById('templateList');
+      if (templates.length === 0) {
+        el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:4px">暂无模板</div>';
+        return;
+      }
+      el.innerHTML = templates.map(t => `
+        <div class="template-item">
+          <span class="t-name">${esc(t.name)}</span>
+          <span class="t-msg">${esc(t.message)}</span>
+          <div class="t-actions">
+            <button class="btn btn-outline btn-xs" onclick="applyTemplateById('${t.id}')">用</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteTemplate('${t.id}')">删</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderTemplateSelect() {
+      const sel = document.getElementById('tplSelect');
+      sel.innerHTML = '<option value="">-- 选择模板填充消息 --</option>' +
+        templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+    }
+
+    async function addTemplate() {
+      const name    = document.getElementById('newTplName').value.trim();
+      const message = document.getElementById('newTplMsg').value.trim();
+      if (!name || !message) { toast('请填写名称和内容', 'error'); return; }
+      await fetch('/api/templates', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name, message }),
+      });
+      document.getElementById('newTplName').value = '';
+      document.getElementById('newTplMsg').value  = '';
+      await loadTemplates();
+      toast('模板已保存', 'success');
+    }
+
+    async function deleteTemplate(id) {
+      await fetch('/api/templates/' + id, { method: 'DELETE' });
+      loadTemplates();
+    }
+
+    function applyTemplate() {
+      const id = document.getElementById('tplSelect').value;
+      if (id) applyTemplateById(id);
+    }
+
+    function applyTemplateById(id) {
+      const t = templates.find(t => t.id === id);
+      if (t) {
+        document.getElementById('messageInput').value = t.message;
+        toast('已应用模板: ' + t.name, 'info');
+        // open templates section if needed - no-op
+      }
+    }
+
+    // ===== Schedules =====
+    let scheduleCounter = 0;
+    const DAY_NAMES = ['日','一','二','三','四','五','六'];
+
+    function addScheduleRow(cronVal = '', labelVal = '') {
+      const list = document.getElementById('scheduleList');
+      const id   = scheduleCounter++;
+      const row  = document.createElement('div');
+      row.className = 'schedule-row';
+      row.id = `sched-${id}`;
+      row.innerHTML = `
+        <div class="schedule-row-main">
+          <div class="sched-visual-wrap">
+            <select class="sched-freq" onchange="onFreqChange(${id})">
+              <option value="daily">每天</option>
+              <option value="weekday">工作日(一~五)</option>
+              <option value="weekend">周末</option>
+              <option value="custom">自定义星期</option>
+              <option value="everyNMin">每X分钟</option>
+              <option value="everyNHour">每X小时</option>
+              <option value="once">仅一次</option>
+            </select>
+            <input type="time" class="sched-time" value="09:00" oninput="syncVisualToCron(${id})">
+            <div class="day-checks sched-days" id="sDays-${id}" style="display:none">
+              ${[0,1,2,3,4,5,6].map(d => `
+                <label>
+                  <input type="checkbox" value="${d}" ${d>=1&&d<=5?'checked':''} onchange="syncVisualToCron(${id})">
+                  <span>周${DAY_NAMES[d]}</span>
+                </label>`).join('')}
+            </div>
+            <div class="sched-interval-wrap" id="sInterval-${id}" style="display:none">
+              <input type="number" class="sched-interval" min="1" max="59" value="5" oninput="syncVisualToCron(${id})">
+              <span class="sched-interval-unit" id="sIntervalUnit-${id}">分钟</span>
+            </div>
+            <input type="date" class="sched-date" id="sDate-${id}" style="display:none" oninput="syncVisualToCron(${id})">
+          </div>
+          <input type="text" class="sched-label-input" placeholder="备注" value="${esc(labelVal)}">
+          <button type="button" class="btn btn-danger btn-xs" onclick="removeScheduleRow(${id})">删</button>
+        </div>
+        <div class="sched-adv-row" id="sAdv-${id}">
+          <label>Cron:</label>
+          <input type="text" class="sched-cron-display" placeholder="0 9 * * *" oninput="syncCronDisplayToHidden(${id})">
+          <span style="font-size:11px;color:var(--text-muted)">直接编辑 cron 表达式</span>
+        </div>
+        <div class="sched-adv-toggle-row">
+          <a href="#" class="sched-adv-toggle" id="sAdvToggle-${id}" onclick="toggleAdvanced(${id});return false">高级模式</a>
+        </div>
+        <input type="hidden" class="sched-cron" value="">
+      `;
+      list.appendChild(row);
+      if (cronVal) {
+        row.querySelector('.sched-cron').value = cronVal;
+        parseCronToVisual(id, cronVal);
+      } else {
+        syncVisualToCron(id);
+      }
+    }
+
+    function onFreqChange(id) {
+      const row = document.getElementById(`sched-${id}`);
+      const freq = row.querySelector('.sched-freq').value;
+      const showTime = ['daily','weekday','weekend','custom','once'].includes(freq);
+      row.querySelector('.sched-time').style.display = showTime ? '' : 'none';
+      document.getElementById(`sDays-${id}`).style.display = freq === 'custom' ? 'flex' : 'none';
+      const intervalWrap = document.getElementById(`sInterval-${id}`);
+      intervalWrap.style.display = ['everyNMin','everyNHour'].includes(freq) ? 'flex' : 'none';
+      const unitEl = document.getElementById(`sIntervalUnit-${id}`);
+      if (unitEl) unitEl.textContent = freq === 'everyNHour' ? '小时' : '分钟';
+      const intervalInput = row.querySelector('.sched-interval');
+      if (freq === 'everyNMin') { intervalInput.max = 59; } else { intervalInput.max = 23; }
+      document.getElementById(`sDate-${id}`).style.display = freq === 'once' ? '' : 'none';
+      syncVisualToCron(id);
+    }
+
+    function syncVisualToCron(id) {
+      const row = document.getElementById(`sched-${id}`);
+      if (!row) return;
+      const freq = row.querySelector('.sched-freq').value;
+      const timeVal = row.querySelector('.sched-time').value || '09:00';
+      const [hh, mm] = timeVal.split(':').map(Number);
+      let expr = '';
+      if (freq === 'daily') {
+        expr = `${mm} ${hh} * * *`;
+      } else if (freq === 'weekday') {
+        expr = `${mm} ${hh} * * 1-5`;
+      } else if (freq === 'weekend') {
+        expr = `${mm} ${hh} * * 0,6`;
+      } else if (freq === 'custom') {
+        const checked = [...row.querySelectorAll(`#sDays-${id} input:checked`)].map(cb => cb.value);
+        expr = `${mm} ${hh} * * ${checked.length > 0 ? checked.join(',') : '*'}`;
+      } else if (freq === 'everyNMin') {
+        const n = row.querySelector('.sched-interval').value || '5';
+        expr = `*/${n} * * * *`;
+      } else if (freq === 'everyNHour') {
+        const n = row.querySelector('.sched-interval').value || '1';
+        expr = `0 */${n} * * *`;
+      } else if (freq === 'once') {
+        const dateVal = document.getElementById(`sDate-${id}`).value;
+        if (dateVal) {
+          const [, mo, dy] = dateVal.split('-').map(Number);
+          expr = `${mm} ${hh} ${dy} ${mo} *`;
+        } else {
+          expr = `${mm} ${hh} * * *`;
+        }
+      }
+      row.querySelector('.sched-cron').value = expr;
+      const advRow = document.getElementById(`sAdv-${id}`);
+      if (advRow && advRow.classList.contains('open')) {
+        advRow.querySelector('.sched-cron-display').value = expr;
+      }
+    }
+
+    function parseCronToVisual(id, expr) {
+      if (!expr) return;
+      const row = document.getElementById(`sched-${id}`);
+      if (!row) return;
+      const parts = expr.trim().split(/\s+/);
+      if (parts.length !== 5) return;
+      const [min, hour, dom, month, dow] = parts;
+      const freq = row.querySelector('.sched-freq');
+      const timeInput = row.querySelector('.sched-time');
+      const intervalInput = row.querySelector('.sched-interval');
+
+      // */N * * * * → everyNMin
+      if (/^\*\/(\d+)$/.test(min) && hour === '*' && dom === '*' && month === '*' && dow === '*') {
+        freq.value = 'everyNMin';
+        intervalInput.value = min.slice(2);
+        onFreqChange(id); return;
+      }
+      // 0 */N * * * or 0 * * * * → everyNHour
+      if (min === '0' && (hour === '*' || /^\*\/(\d+)$/.test(hour)) && dom === '*' && month === '*' && dow === '*') {
+        freq.value = 'everyNHour';
+        intervalInput.value = hour === '*' ? '1' : hour.slice(2);
+        onFreqChange(id); return;
+      }
+      // Fixed minute + hour
+      if (/^\d+$/.test(min) && /^\d+$/.test(hour)) {
+        const h = parseInt(hour), m = parseInt(min);
+        timeInput.value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        // M H D Mo * → once
+        if (/^\d+$/.test(dom) && /^\d+$/.test(month) && dow === '*') {
+          freq.value = 'once';
+          const year = new Date().getFullYear();
+          document.getElementById(`sDate-${id}`).value =
+            `${year}-${String(parseInt(month)).padStart(2,'0')}-${String(parseInt(dom)).padStart(2,'0')}`;
+          onFreqChange(id); return;
+        }
+        if (dom === '*' && month === '*') {
+          if (dow === '*')           { freq.value = 'daily'; }
+          else if (dow === '1-5')    { freq.value = 'weekday'; }
+          else if (dow === '0,6' || dow === '6,0') { freq.value = 'weekend'; }
+          else {
+            freq.value = 'custom';
+            const days = dow.split(',').map(d => parseInt(d));
+            row.querySelectorAll(`#sDays-${id} input[type=checkbox]`).forEach(cb => {
+              cb.checked = days.includes(parseInt(cb.value));
+            });
+          }
+          onFreqChange(id); return;
+        }
+      }
+      // Fallback: unknown pattern — just store the raw cron, open advanced mode
+      row.querySelector('.sched-cron').value = expr;
+      if (!document.getElementById(`sAdv-${id}`).classList.contains('open')) toggleAdvanced(id);
+    }
+
+    function syncCronDisplayToHidden(id) {
+      const row = document.getElementById(`sched-${id}`);
+      const val = row.querySelector('.sched-cron-display').value.trim();
+      row.querySelector('.sched-cron').value = val;
+      parseCronToVisual(id, val);
+    }
+
+    function toggleAdvanced(id) {
+      const advRow = document.getElementById(`sAdv-${id}`);
+      const isOpen = advRow.classList.toggle('open');
+      document.getElementById(`sAdvToggle-${id}`).textContent = isOpen ? '简单模式' : '高级模式';
+      if (isOpen) {
+        const cronVal = document.getElementById(`sched-${id}`).querySelector('.sched-cron').value;
+        advRow.querySelector('.sched-cron-display').value = cronVal;
+      }
+    }
+
+    function removeScheduleRow(id) {
+      const row = document.getElementById(`sched-${id}`);
+      if (row) row.remove();
+      if (document.querySelectorAll('.schedule-row').length === 0) addScheduleRow();
+    }
+
+    function fillLastCron(expr) {
+      const rows = document.querySelectorAll('.schedule-row');
+      if (rows.length === 0) return;
+      const lastRow = rows[rows.length - 1];
+      const idMatch = lastRow.id.match(/sched-(\d+)/);
+      if (!idMatch) return;
+      const id = parseInt(idMatch[1]);
+      lastRow.querySelector('.sched-cron').value = expr;
+      parseCronToVisual(id, expr);
+      const advRow = document.getElementById(`sAdv-${id}`);
+      if (advRow && advRow.classList.contains('open')) {
+        advRow.querySelector('.sched-cron-display').value = expr;
+      }
+    }
+
+    function getSchedules() {
+      const schedules = [];
+      document.querySelectorAll('.schedule-row').forEach(row => {
+        const cronExpr = row.querySelector('.sched-cron').value.trim();
+        const label    = row.querySelector('.sched-label-input').value.trim();
+        if (cronExpr) schedules.push({ cronExpression: cronExpr, label });
+      });
+      return schedules;
+    }
+
+    // ===== Image preview =====
+    document.getElementById('imageInput').addEventListener('change', function() {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('previewImg').src = e.target.result;
+          document.getElementById('previewName').textContent = file.name;
+          document.getElementById('imagePreview').style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        document.getElementById('imagePreview').style.display = 'none';
+      }
+    });
+
+    function clearImage() {
+      document.getElementById('imageInput').value = '';
+      document.getElementById('imagePreview').style.display = 'none';
+    }
+
+    // ===== Tasks =====
+    let cachedTasks = [];
+
+    async function loadTasks() {
+      cachedTasks = await (await fetch('/api/tasks')).json();
+      renderTasks();
+    }
+
+    function getSortedFiltered() {
+      const q    = (document.getElementById('taskSearch')?.value || '').toLowerCase();
+      const sort = document.getElementById('taskSort')?.value || 'createdDesc';
+
+      let list = cachedTasks.filter(t => {
+        if (!q) return true;
+        const groups = (t.groupNames || [t.groupName]).join(' ').toLowerCase();
+        const msg    = (t.message || '').toLowerCase();
+        return groups.includes(q) || msg.includes(q);
+      });
+
+      list = [...list].sort((a, b) => {
+        if (sort === 'createdDesc') return new Date(b.createdAt) - new Date(a.createdAt);
+        if (sort === 'createdAsc')  return new Date(a.createdAt) - new Date(b.createdAt);
+        if (sort === 'runDesc') {
+          if (!a.lastRun && !b.lastRun) return 0;
+          if (!a.lastRun) return 1; if (!b.lastRun) return -1;
+          return new Date(b.lastRun) - new Date(a.lastRun);
+        }
+        if (sort === 'nameAsc') {
+          const an = (a.groupNames||[a.groupName]).join(',');
+          const bn = (b.groupNames||[b.groupName]).join(',');
+          return an.localeCompare(bn, 'zh');
+        }
+        if (sort === 'status') {
+          const order = { running: 0, error: 1, active: 2, disabled: 3 };
+          const as = !a.enabled ? 'disabled' : (a.status || 'active');
+          const bs = !b.enabled ? 'disabled' : (b.status || 'active');
+          return (order[as] ?? 9) - (order[bs] ?? 9);
+        }
+        return 0;
+      });
+      return list;
+    }
+
+    function renderTasks() {
+      const list   = document.getElementById('taskList');
+      const tasks  = getSortedFiltered();
+      document.getElementById('taskCount').textContent = cachedTasks.length;
+
+      if (tasks.length === 0) {
+        list.innerHTML = '<div class="empty-state">暂无任务</div>';
+        return;
+      }
+      list.innerHTML = tasks.map(t => {
+        const cls = !t.enabled ? 'disabled' : t.status === 'error' ? 'error' : t.status === 'running' ? 'running' : '';
+        const groupLabel = (t.groupNames && t.groupNames.length ? t.groupNames : [t.groupName]).join(' + ');
+        return `
+        <div class="task-item ${cls}" id="task-${t.id}">
+          <div class="task-header">
+            <div class="task-name">${esc(groupLabel)} ${statusBadge(t)}</div>
+            <div class="task-actions">
+              <div class="toggle ${t.enabled ? 'on' : ''}" onclick="toggleTask('${t.id}', ${!t.enabled})"></div>
+              <button class="btn btn-warning btn-sm" id="runBtn-${t.id}" onclick="runNow('${t.id}')">立即发送</button>
+              <button class="btn btn-outline btn-sm" onclick="editTask('${t.id}')">编辑</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">删除</button>
+            </div>
+          </div>
+          <div class="task-meta">
+            <span>已发送 ${t.runCount || 0} 次</span>
+            ${t.lastRun ? `<span>上次: ${formatFriendlyTime(t.lastRun)}</span>` : ''}
+            ${t.nextRun ? `<span>下次: ${formatFriendlyTime(t.nextRun)}</span>` : ''}
+            ${t.lastError ? `<span style="color:#f44336">${esc(t.lastError)}</span>` : ''}
+          </div>
+          ${t.schedules && t.schedules.length > 0 ? `
+            <div class="task-schedules">
+              ${t.schedules.map(s => `<span class="task-sched-tag" style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px">
+                <span>${cronToHuman(s.cronExpression)}${s.label ? ' · '+esc(s.label) : ''}</span>
+                <span style="font-size:10px;opacity:0.6;font-family:monospace">${esc(s.cronExpression)}</span>
+              </span>`).join('')}
+            </div>` : ''}
+          ${t.message ? `<div class="task-content">${esc(t.message)}</div>` : ''}
+          ${t.imageOriginalName ? `<div class="task-image-tag">📷 ${esc(t.imageOriginalName)}</div>` : ''}
+          <div class="task-step" data-task-id="${t.id}">${liveSteps[t.id] || ''}</div>
+          <span class="log-toggle" onclick="toggleLogs('${t.id}', this)">查看执行记录</span>
+          <div class="log-list" id="logs-${t.id}" data-page="1"></div>
+        </div>`;
+      }).join('');
+
+      updateStepDisplays();
+    }
+
+    // ===== Logs with pagination =====
+    async function toggleLogs(taskId, btn) {
+      const el = document.getElementById('logs-' + taskId);
+      if (el.classList.contains('open')) {
+        el.classList.remove('open');
+        if (btn) btn.textContent = '查看执行记录';
+        return;
+      }
+      if (btn) btn.textContent = '收起记录';
+      el.dataset.page = '1';
+      await loadLogsPage(taskId, 1);
+      el.classList.add('open');
+    }
+
+    async function loadLogsPage(taskId, page) {
+      const el = document.getElementById('logs-' + taskId);
+      if (!el) return;
+      try {
+        const res  = await fetch(`/api/logs?taskId=${taskId}&page=${page}&limit=20`);
+        const data = await res.json();
+        const { logs, total, pages } = data;
+
+        let html = '';
+        if (logs.length === 0) {
+          html = '<div style="font-size:11px;color:var(--text-muted);padding:4px">暂无记录</div>';
+        } else {
+          html = logs.map(l => `
+            <div class="log-entry ${l.status}">
+              <span>${new Date(l.ts).toLocaleString('zh')} — ${l.status === 'success' ? '成功' : '失败'} (${(l.duration/1000).toFixed(1)}s)</span>
+              ${l.error ? `<span>${esc(l.error)}</span>` : ''}
+            </div>`).join('');
+        }
+        // pagination controls
+        if (pages > 1) {
+          html += `<div class="log-pagination">
+            <button class="btn btn-outline btn-xs" ${page <= 1 ? 'disabled' : ''} onclick="loadLogsPage('${taskId}', ${page-1})">上一页</button>
+            <span>${page} / ${pages} 页 (共 ${total} 条)</span>
+            <button class="btn btn-outline btn-xs" ${page >= pages ? 'disabled' : ''} onclick="loadLogsPage('${taskId}', ${page+1})">下一页</button>
+          </div>`;
+        } else {
+          html += `<div class="log-pagination"><span>共 ${total} 条</span></div>`;
+        }
+        el.innerHTML = html;
+        el.dataset.page = String(page);
+      } catch {
+        el.innerHTML = '<div style="color:#f44336;font-size:11px">加载失败</div>';
+      }
+    }
+
+    // ===== Edit / Submit =====
+    async function editTask(id) {
+      const task = cachedTasks.find(t => t.id === id);
+      if (!task) return;
+
+      document.getElementById('editId').value         = task.id;
+      document.getElementById('formTitle').textContent = '编辑任务';
+      document.getElementById('submitBtn').textContent = '保存修改';
+      document.getElementById('formCard').classList.add('editing');
+      document.getElementById('messageInput').value    = task.message || '';
+
+      // Set selected groups
+      selectedGroups = task.groupNames && task.groupNames.length ? [...task.groupNames] : (task.groupName ? [task.groupName] : []);
+      renderMultiGroupDropdown();
+      renderMultiGroupBox();
+
+      // Existing image
+      if (task.imageOriginalName) {
+        document.getElementById('previewImg').src = '';
+        document.getElementById('previewName').textContent = '当前: ' + task.imageOriginalName;
+        document.getElementById('imagePreview').style.display = 'flex';
+      } else {
+        document.getElementById('imagePreview').style.display = 'none';
+      }
+
+      // Schedules
+      document.getElementById('scheduleList').innerHTML = '';
+      if (task.schedules && task.schedules.length > 0) {
+        task.schedules.forEach(s => addScheduleRow(s.cronExpression, s.label || ''));
+      } else { addScheduleRow(); }
+
+      document.getElementById('formCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function resetForm() {
+      document.getElementById('taskForm').reset();
+      document.getElementById('editId').value          = '';
+      document.getElementById('formTitle').textContent  = '新建定时任务';
+      document.getElementById('submitBtn').textContent  = '创建任务';
+      document.getElementById('formCard').classList.remove('editing');
+      document.getElementById('imagePreview').style.display = 'none';
+      document.getElementById('scheduleList').innerHTML = '';
+      selectedGroups = [];
+      renderMultiGroupBox();
+      renderMultiGroupDropdown();
+      addScheduleRow();
+    }
+
+    document.getElementById('taskForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (selectedGroups.length === 0) { toast('请选择至少一个群聊', 'error'); return; }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> 保存中...';
+
+      try {
+        const form = new FormData(e.target);
+        form.set('schedules',   JSON.stringify(getSchedules()));
+        form.set('groupNames',  JSON.stringify(selectedGroups));
+        form.delete('groupName'); // avoid confusion
+
+        const editId = document.getElementById('editId').value;
+        const url    = editId ? `/api/tasks/${editId}` : '/api/tasks';
+        const method = editId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, { method, body: form });
+        if (!res.ok) throw new Error('保存失败');
+
+        toast(editId ? '任务已更新' : '任务已创建', 'success');
+        resetForm();
+        loadTasks();
+      } catch (err) { toast(err.message, 'error'); }
+      finally {
+        btn.disabled = false;
+        btn.textContent = document.getElementById('editId').value ? '保存修改' : '创建任务';
+      }
+    });
+
+    async function toggleTask(id, enabled) {
+      const task = cachedTasks.find(t => t.id === id);
+      if (!task) return;
+      const form = new FormData();
+      form.append('enabled',    enabled.toString());
+      form.set('schedules',     JSON.stringify(task.schedules || []));
+      form.set('groupNames',    JSON.stringify(task.groupNames || [task.groupName]));
+      await fetch(`/api/tasks/${id}`, { method: 'PUT', body: form });
+      toast(enabled ? '任务已启用' : '任务已停用', 'info');
+      loadTasks();
+    }
+
+    async function runNow(id) {
+      if (!confirm('确定立即发送?')) return;
+      const btn = document.getElementById('runBtn-' + id);
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
+      try {
+        const res  = await fetch(`/api/tasks/${id}/run`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) toast(data.error, 'error');
+        else toast('已加入执行队列', 'info');
+      } catch { toast('请求失败', 'error'); }
+      setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = '立即发送'; } }, 3000);
+    }
+
+    async function deleteTask(id) {
+      if (!confirm('确定删除此任务?')) return;
+      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      toast('任务已删除', 'info');
+      loadTasks();
+    }
+
+    async function refreshScreenshot() {
+      const card = document.getElementById('screenshotCard');
+      card.style.display = '';
+      const img = document.getElementById('screenshotImg');
+      img.style.opacity = '0.3';
+      img.src = `/api/screenshot?t=${Date.now()}`;
+      img.onload = () => { img.style.opacity = '1'; };
+    }
+
+    // ===== Helpers =====
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    function statusBadge(t) {
+      if (!t.enabled) return '<span class="status-badge disabled">已停用</span>';
+      if (t.status === 'running') return '<span class="status-badge running">发送中...</span>';
+      if (t.status === 'error')   return '<span class="status-badge error">出错</span>';
+      return '<span class="status-badge active">运行中</span>';
+    }
+
+    // ===== Time formatting =====
+    function getTimeFmt() { return localStorage.getItem('timeFormat') || '24h'; }
+
+    function formatHM(h, m) {
+      const fmt = getTimeFmt();
+      const mm = String(m).padStart(2, '0');
+      if (fmt === '12h') {
+        const period = h < 12 ? '上午' : '下午';
+        const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        return `${period} ${String(h12).padStart(2,'0')}:${mm}`;
+      }
+      return `${String(h).padStart(2,'0')}:${mm}`;
+    }
+
+    function formatFriendlyTime(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      const now   = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tmrw  = new Date(today); tmrw.setDate(today.getDate() + 1);
+      const dDay  = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const timeStr = formatHM(d.getHours(), d.getMinutes());
+      if (dDay.getTime() === today.getTime()) return `今天 ${timeStr}`;
+      if (dDay.getTime() === tmrw.getTime())  return `明天 ${timeStr}`;
+      if (d.getFullYear() === now.getFullYear()) return `${d.getMonth()+1}月${d.getDate()}日 ${timeStr}`;
+      return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${timeStr}`;
+    }
+
+    // ===== Cron to human readable =====
+    const DAY_ZH = ['日','一','二','三','四','五','六'];
+
+    function cronToHuman(expr) {
+      if (!expr) return expr;
+      const parts = expr.trim().split(/\s+/);
+      if (parts.length !== 5) return expr;
+      const [min, hour, dom, month, dow] = parts;
+
+      // Every minute
+      if (min === '*' && hour === '*' && dom === '*' && month === '*' && dow === '*')
+        return '每分钟';
+
+      // */N * * * *  → 每N分钟
+      if (/^\*\/(\d+)$/.test(min) && hour === '*' && dom === '*' && month === '*' && dow === '*') {
+        const n = min.slice(2);
+        return `每${n}分钟`;
+      }
+
+      // 0 * * * *  → 每小时
+      if (min === '0' && hour === '*' && dom === '*' && month === '*' && dow === '*')
+        return '每小时';
+
+      // 0 */N * * *  → 每N小时
+      if (min === '0' && /^\*\/(\d+)$/.test(hour) && dom === '*' && month === '*' && dow === '*') {
+        return `每${hour.slice(2)}小时`;
+      }
+
+      // Cases that need specific hour(s) and minute
+      if (/^\d+$/.test(min)) {
+        const m = parseInt(min);
+
+        // Multiple hours: M H,H,H * * *
+        if (/^\d+(,\d+)+$/.test(hour) && dom === '*' && month === '*' && dow === '*') {
+          const times = hour.split(',').map(h => formatHM(parseInt(h), m));
+          return `每天 ${times.join(', ')}`;
+        }
+
+        if (!/^\d+$/.test(hour)) return expr;
+        const h = parseInt(hour);
+        const timeStr = formatHM(h, m);
+
+        // Specific month+day: M H D Mo *
+        if (/^\d+$/.test(dom) && /^\d+$/.test(month) && dow === '*') {
+          const mo = parseInt(month), d = parseInt(dom);
+          const maxDay = [0,31,29,31,30,31,30,31,31,30,31,30,31];
+          if (mo >= 1 && mo <= 12 && d >= 1 && d <= maxDay[mo]) return `${mo}月${d}日 ${timeStr}`;
+          return expr; // invalid date, show raw
+        }
+
+        // Day-of-week variants
+        if (dow !== '*' && dom === '*' && month === '*') {
+          if (dow === '1-5') return `工作日 ${timeStr}`;
+          if (dow === '0,6' || dow === '6,0') return `周末 ${timeStr}`;
+          if (/^\d+$/.test(dow)) return `每周${DAY_ZH[parseInt(dow)]} ${timeStr}`;
+          if (/^\d+(,\d+)+$/.test(dow)) {
+            const days = dow.split(',').map(d => `周${DAY_ZH[parseInt(d)]}`).join('、');
+            return `${days} ${timeStr}`;
+          }
+          return `${dow} ${timeStr}`;
+        }
+
+        // Every day: M H * * *
+        if (dom === '*' && month === '*' && dow === '*') return `每天 ${timeStr}`;
+      }
+
+      return expr; // fallback: show raw
+    }
+
+    // ===== Init =====
+    loadGroups();
+    loadTemplates();
+    loadTasks();
+    addScheduleRow();
+    connectSSE();
+    checkDevice();
+    setInterval(checkDevice, 10000);
+    setInterval(loadTasks, 8000);
+
+    document.getElementById('newGroupInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addGroup(); }
+    });
+  </script>
+</body>
+</html>

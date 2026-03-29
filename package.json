@@ -1,0 +1,29 @@
+{
+  "name": "santiao-scheduler",
+  "version": "1.0.0",
+  "description": "三条聊天定时发送工具 | Santiao Chat Scheduled Message Sender",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "package": "node scripts/package.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:image": "node scripts/test-image-send.js"
+  },
+  "keywords": ["santiao", "adb", "automation", "scheduler", "android"],
+  "author": "esmatcm",
+  "license": "ISC",
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/esmatcm/santiao-scheduler.git"
+  },
+  "homepage": "https://github.com/esmatcm/santiao-scheduler",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "node-cron": "^4.2.1"
+  }
+}

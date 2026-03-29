@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三条定时发送 - 初始设置</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3348;
+    --text: #e4e6f0;
+    --text2: #8b8fa8;
+    --accent: #6c7cff;
+    --accent-hover: #8490ff;
+    --success: #4caf50;
+    --error: #f44336;
+    --warning: #ff9800;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .container {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .header p {
+    color: var(--text2);
+    font-size: 14px;
+  }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all 0.3s;
+  }
+  .step.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(108, 124, 255, 0.1);
+  }
+  .step.done {
+    border-color: var(--success);
+    opacity: 0.85;
+  }
+  .step.error {
+    border-color: var(--error);
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .step.active .step-num {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .step.done .step-num {
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+  }
+  .step.error .step-num {
+    background: var(--error);
+    border-color: var(--error);
+    color: #fff;
+  }
+  .step-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .step-body {
+    padding-left: 44px;
+  }
+  .step-status {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 8px;
+    min-height: 20px;
+  }
+  .step-status.ok { color: var(--success); }
+  .step-status.err { color: var(--error); }
+  .step-detail {
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    line-height: 1.6;
+    display: none;
+  }
+  .step-detail.show { display: block; }
+  .step-detail a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .step-detail a:hover { text-decoration: underline; }
+  .step-detail code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #fff;
+    margin-top: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-success {
+    background: var(--success);
+  }
+  .btn-success:hover { background: #66bb6a; }
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .done-card {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .done-card .icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  .done-card h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  .done-card p {
+    color: var(--text2);
+    margin-bottom: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>三条定时发送工具</h1>
+    <p>首次使用，请按以下步骤完成初始设置</p>
+  </div>
+
+  <div class="steps" id="steps">
+    <!-- Step 1: ADB -->
+    <div class="step" id="step1" data-step="1">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-title">检测 ADB 工具</div>
+      </div>
+      <div class="step-body">
+        <div class="step-status" id="step1-status">等待检测...</div>
+        <div class="step-detail" id="step1-detail">
+          <strong>ADB (Android Debug Bridge) 未找到</strong><br><br>
+          请将 Android SDK Platform Tools 放到本工具目录下的 <code>platform-tools/</code> 文件夹：<br><br>
+          下载地址：<br>
+          macOS: <a href="https://dl.google.com/android/repository/platform-tools-latest-darwin.zip" target="_blank">platform-tools-latest-darwin.zip</a><br>
+          Windows: <a href="https://dl.google.com/android/repository/platform-tools-latest-windows.zip" target="_blank">platform-tools-latest-windows.zip</a><br>
+          Linux: <a href="https://dl.google.com/android/repository/platform-tools-latest-linux.zip" target="_blank">platform-tools-latest-linux.zip</a><br><br>
+          下载后解压，将整个 <code>platform-tools</code> 文件夹放到本工具根目录即可。
+        </div>
+        <button class="btn btn-primary" id="step1-btn" onclick="runStep1()">开始检测</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Device -->
+    <div class="step" id="step2" data-step="2">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-title">连接手机</div>
+      </div>
+      <div class="step-body">
+        <div class="step-status" id="step2-status">等待上一步完成...</div>
+        <div class="step-detail" id="step2-detail">
+          <strong>未检测到手机</strong><br><br>
+          请确认：<br>
+          1. 手机已通过 USB 数据线连接到电脑<br>
+          2. 手机已开启「开发者选项」和「USB 调试」<br>
+          3. 手机屏幕上弹出的 USB 调试授权已点击「允许」<br><br>
+          <strong>如何开启 USB 调试：</strong><br>
+          设置 → 关于手机 → 连续点击「版本号」7次 → 返回设置 → 开发者选项 → 打开 USB 调试
+        </div>
+        <button class="btn btn-primary" id="step2-btn" onclick="runStep2()" disabled>检测手机</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Santiao App -->
+    <div class="step" id="step3" data-step="3">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">安装三条 App</div>
+      </div>
+      <div class="step-body">
+        <div class="step-status" id="step3-status">等待上一步完成...</div>
+        <div class="step-detail" id="step3-detail">
+          <strong>安装失败</strong><br><br>
+          请确认 <code>resources/SantiaoTalk.apk</code> 文件存在。<br>
+          如果手机弹出安装确认框，请点击「允许」或「安装」。
+        </div>
+        <button class="btn btn-primary" id="step3-btn" onclick="runStep3()" disabled>安装三条</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Launch & Verify -->
+    <div class="step" id="step4" data-step="4">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <div class="step-title">启动三条并验证聊天界面</div>
+      </div>
+      <div class="step-body">
+        <div class="step-status" id="step4-status">等待上一步完成...</div>
+        <div class="step-detail" id="step4-detail">
+          <strong>聊天界面未检测到</strong><br><br>
+          可能的原因：<br>
+          1. 三条 App 需要登录 — 请在手机上完成登录后重试<br>
+          2. App 仍在加载中 — 等待几秒后重试<br>
+          3. 手机屏幕被锁定 — 请解锁手机
+        </div>
+        <button class="btn btn-primary" id="step4-btn" onclick="runStep4()" disabled>启动并检测</button>
+      </div>
+    </div>
+
+    <!-- Step 5: IME -->
+    <div class="step" id="step5" data-step="5">
+      <div class="step-header">
+        <div class="step-num">5</div>
+        <div class="step-title">安装 ADB 输入法</div>
+      </div>
+      <div class="step-body">
+        <div class="step-status" id="step5-status">等待上一步完成...</div>
+        <div class="step-detail" id="step5-detail">
+          <strong>安装失败</strong><br><br>
+          请确认 <code>resources/AdbIME.apk</code> 文件存在。<br>
+          如果手机弹出安装确认框，请点击「允许」或「安装」。
+        </div>
+        <button class="btn btn-primary" id="step5-btn" onclick="runStep5()" disabled>安装输入法</button>
+      </div>
+    </div>
+
+    <!-- Step 6: Done -->
+    <div class="step" id="step6" data-step="6">
+      <div class="step-header">
+        <div class="step-num">6</div>
+        <div class="step-title">完成设置</div>
+      </div>
+      <div class="step-body">
+        <div class="step-status" id="step6-status">等待上一步完成...</div>
+        <button class="btn btn-success" id="step6-btn" onclick="enterDashboard()" disabled>进入主界面</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+async function api(method, path) {
+  const r = await fetch('/api/setup/' + path, { method });
+  return r.json();
+}
+
+function setStepState(n, state, statusText, showDetail) {
+  const step = $('step' + n);
+  const status = $('step' + n + '-status');
+  const detail = $('step' + n + '-detail');
+  step.className = 'step ' + state;
+  if (statusText) status.textContent = statusText;
+  status.className = 'step-status' + (state === 'done' ? ' ok' : state === 'error' ? ' err' : '');
+  if (detail) detail.classList.toggle('show', !!showDetail);
+}
+
+function setBtn(id, text, disabled, loading) {
+  const btn = $(id);
+  btn.disabled = disabled;
+  btn.innerHTML = loading ? '<span class="spinner"></span> ' + text : text;
+}
+
+// Step 1: Check ADB
+async function runStep1() {
+  setStepState(1, 'active', '正在检测 ADB...');
+  setBtn('step1-btn', '检测中...', true, true);
+  const r = await api('POST', 'check-adb');
+  if (r.ok) {
+    setStepState(1, 'done', `ADB 已就绪: ${r.version || r.path}`);
+    setBtn('step1-btn', '已完成', true, false);
+    // Auto advance
+    setBtn('step2-btn', '检测手机', false, false);
+    setStepState(2, 'active', '请连接手机并点击下方按钮');
+    setTimeout(runStep2, 500);
+  } else {
+    setStepState(1, 'error', r.error || 'ADB 未找到', true);
+    setBtn('step1-btn', '重新检测', false, false);
+  }
+}
+
+// Step 2: Check Device
+async function runStep2() {
+  setStepState(2, 'active', '正在检测手机...');
+  setBtn('step2-btn', '检测中...', true, true);
+  const r = await api('POST', 'check-device');
+  if (r.ok) {
+    let info = r.model ? `${r.model} (${r.serial})` : r.serial;
+    if (r.count > 1) info += ` (共检测到 ${r.count} 台设备，已选择第一台)`;
+    setStepState(2, 'done', `已连接: ${info}`);
+    setBtn('step2-btn', '已完成', true, false);
+    // Auto advance
+    setBtn('step3-btn', '安装三条', false, false);
+    setStepState(3, 'active', '检测三条 App 是否已安装...');
+    setTimeout(runStep3, 500);
+  } else {
+    setStepState(2, 'error', r.error || '未检测到手机', true);
+    setBtn('step2-btn', '重新检测', false, false);
+  }
+}
+
+// Step 3: Install Santiao App
+async function runStep3() {
+  setStepState(3, 'active', '正在检测并安装三条 App...');
+  setBtn('step3-btn', '安装中...', true, true);
+  const r = await api('POST', 'install-santiao');
+  if (r.ok) {
+    const msg = r.alreadyInstalled ? '三条 App 已安装' : '三条 App 安装成功';
+    setStepState(3, 'done', msg);
+    setBtn('step3-btn', '已完成', true, false);
+    // Auto advance to launch verify
+    setBtn('step4-btn', '启动并检测', false, false);
+    setStepState(4, 'active', '正在启动三条 App 并检测聊天界面...');
+    setTimeout(runStep4, 500);
+  } else {
+    setStepState(3, 'error', r.error || '安装失败', true);
+    setBtn('step3-btn', '重新安装', false, false);
+  }
+}
+
+// Step 4: Launch Santiao & verify chat interface
+async function runStep4() {
+  setStepState(4, 'active', '正在启动三条 App 并检测聊天界面（约 15 秒）...');
+  setBtn('step4-btn', '检测中...', true, true);
+  const r = await api('POST', 'launch-verify');
+  if (r.ok) {
+    setStepState(4, 'done', r.message || '聊天界面已就绪');
+    setBtn('step4-btn', '已完成', true, false);
+    // Auto advance to IME
+    setBtn('step5-btn', '安装输入法', false, false);
+    setStepState(5, 'active', '正在安装 ADB 输入法...');
+    setTimeout(runStep5, 500);
+  } else {
+    setStepState(4, 'error', r.error || '聊天界面未检测到', true);
+    setBtn('step4-btn', '重新检测', false, false);
+  }
+}
+
+// Step 5: Install IME
+async function runStep5() {
+  setStepState(5, 'active', '正在安装 ADB 输入法...');
+  setBtn('step5-btn', '安装中...', true, true);
+  const r = await api('POST', 'install-ime');
+  if (r.ok) {
+    const msg = r.alreadyInstalled ? 'ADB 输入法已就绪（之前已安装）' : 'ADB 输入法安装成功';
+    setStepState(5, 'done', msg);
+    setBtn('step5-btn', '已完成', true, false);
+    // Final verify
+    await runStep6();
+  } else {
+    setStepState(5, 'error', r.error || '安装失败', true);
+    setBtn('step5-btn', '重新安装', false, false);
+  }
+}
+
+// Step 6: Verify & finish
+async function runStep6() {
+  setStepState(6, 'active', '正在最终验证...');
+  const r = await api('POST', 'verify');
+  if (r.ok) {
+    setStepState(6, 'done', '所有检查通过！');
+    setBtn('step6-btn', '进入主界面', false, false);
+  } else {
+    const errMsg = r.errors ? r.errors.join('; ') : '验证未通过';
+    setStepState(6, 'error', errMsg);
+    setBtn('step6-btn', '进入主界面', false, false);
+  }
+}
+
+function enterDashboard() {
+  window.location.href = '/';
+}
+
+// On load: check if already complete
+(async () => {
+  const state = await api('GET', 'status');
+  if (state.completed) {
+    window.location.href = '/';
+    return;
+  }
+  // Start from step 1
+  setStepState(1, 'active', '点击下方按钮开始检测');
+  // Auto-start
+  setTimeout(runStep1, 300);
+})();
+</script>
+</body>
+</html>
