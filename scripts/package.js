@@ -30,6 +30,7 @@ const EXCLUDE = new Set([
   'server.log', 'logs.json', 'tasks.json', 'groups.json', 'templates.json',
   'setup.json', '.DS_Store', 'uploads', 'platform-tools',
   '启动.command', '启动.bat',  // root launchers are copied per-platform below
+  'Start.command', 'Start.bat',  // ASCII-named launchers, also copied per-platform
 ]);
 
 // ---------------------------------------------------------------------------
@@ -107,8 +108,11 @@ function buildPlatform(platform) {
 
   // 5. Copy root launcher for this platform & set permissions
   if (platform === 'mac') {
+    // Copy both Chinese and ASCII-named launchers for Mac
     fs.copyFileSync(path.join(ROOT, '启动.command'), path.join(OUT, '启动.command'));
     fs.chmodSync(path.join(OUT, '启动.command'), 0o755);
+    fs.copyFileSync(path.join(ROOT, 'Start.command'), path.join(OUT, 'Start.command'));
+    fs.chmodSync(path.join(OUT, 'Start.command'), 0o755);
     const sh = path.join(OUT, 'scripts', 'start.sh');
     const cmd = path.join(OUT, 'scripts', 'start.command');
     if (fs.existsSync(sh)) try { fs.chmodSync(sh, 0o755); } catch {}
@@ -119,7 +123,9 @@ function buildPlatform(platform) {
     const adbBin = path.join(ptDest, 'adb');
     if (fs.existsSync(adbBin)) try { fs.chmodSync(adbBin, 0o755); } catch {}
   } else {
+    // Copy both Chinese and ASCII-named launchers for Windows
     fs.copyFileSync(path.join(ROOT, '启动.bat'), path.join(OUT, '启动.bat'));
+    fs.copyFileSync(path.join(ROOT, 'Start.bat'), path.join(OUT, 'Start.bat'));
   }
 
   // 6. Create archive
